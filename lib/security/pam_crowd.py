@@ -8,7 +8,7 @@ headers = {'content-type': 'application/xml'}
 
 def auth_log(msg):
     syslog.openlog(facility=syslog.LOG_AUTH)
-    syslog.syslog("pam_python.so %s" % msg)
+    syslog.syslog("[Crowd] %s" % msg)
     syslog.closelog()
 
 def pam_sm_authenticate(pamh, flags, argv):
@@ -19,7 +19,7 @@ def pam_sm_authenticate(pamh, flags, argv):
     if not user:
         return pamh.PAM_USER_UNKNOWN
     try:
-        resp = pamh.conversation(pamh.Message(pamh.PAM_PROMPT_ECHO_OFF, "%s's Password:"%user))
+        resp = pamh.conversation(pamh.Message(pamh.PAM_PROMPT_ECHO_OFF, "%s's password: " % user))
     except pamh.exception, e:
         return e.pam_result
 
@@ -39,8 +39,7 @@ def pam_sm_authenticate(pamh, flags, argv):
         xml_content = objectify.fromstring(crowd_auth.content)
         if crowd_auth.status_code == 200:
             if xml_content.active:
-                print "Welcome, %s %s" % (xml_content['first-name'], xml_content['last-name'])
-                auth_log("%s %s Logged In"% (xml_content['first-name'], xml_content['last-name']))
+                auth_log("%s (%s %s) logged in" % (user, xml_content['first-name'], xml_content['last-name']))
                 return pamh.PAM_SUCCESS
             else:
                 return pamh.PAM_ACCT_EXPIRED 
