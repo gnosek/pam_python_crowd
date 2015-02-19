@@ -15,7 +15,7 @@
 
 # here are the per-package modules (the "Primary" block)
 auth	[success=2 default=ignore]	pam_unix.so nullok_secure
-auth	sufficient 	pam_python.so pam_crowd.py use_first_pass debug
+auth	sufficient 	pam_python.so pam_crowd.py http://192.168.1.101:8095/ pam_client SuperSecure
 # here's the fallback if no module succeeds
 auth	requisite			pam_deny.so
 # prime the stack with a positive return value if there isn't one already;

@@ -1,9 +1,8 @@
 import requests
 from lxml import objectify
 import syslog
-AUTH_USER="pam_client"
-AUTH_PASS="SuperSecure"
-URL_ROOT="http://192.168.1.101:8095/crowd/rest/usermanagement/latest/"
+
+API_ENDPOINT = 'crowd/rest/usermanagement/latest/authentication'
 
 headers = {'content-type': 'application/xml'}
 
@@ -11,10 +10,6 @@ def auth_log(msg):
   syslog.openlog(facility=syslog.LOG_AUTH)
   syslog.syslog("pam_python.so %s" % msg)
   syslog.closelog()
-
-def verify_user(username):
-  r = requests.get(URL_ROOT+"user.json?username=%s"% username, auth=(AUTH_USER, AUTH_PASS))
-  return r.status_code == 200 and r.json()['active']
 
 def pam_sm_authenticate(pamh, flags, argv):
   try:
@@ -29,9 +24,16 @@ def pam_sm_authenticate(pamh, flags, argv):
     return e.pam_result
 
   try:
+    URL_ROOT, AUTH_USER, AUTH_PASS = argv[1:4]
+  except ValueError:
+    auth_log("Specify Crowd base URL, username and password as module args")
+    return pamh.PAM_SYSTEM_ERR
+
+  try:
     data_obj = """<?xml version="1.0" encoding="UTF-8"?><password><value>%s</value></password>""" % resp.resp
-    crowd_auth = requests.post(URL_ROOT+"authentication?username=%s" % user, data=data_obj, auth=(AUTH_USER,AUTH_PASS), headers=headers)
+    crowd_auth = requests.post(URL_ROOT + API_ENDPOINT + "?username=%s" % user, data=data_obj, auth=(AUTH_USER,AUTH_PASS), headers=headers)
   except requests.exceptions.RequestException, e:
+    auth_log(e.msg)
     return pamh.PAM_SYSTEM_ERR
   try:
     xml_content = objectify.fromstring(crowd_auth.content)
@@ -69,7 +71,3 @@ def pam_sm_close_session(pamh, flags, argv):
 
 def pam_sm_chauthtok(pamh, flags, argv):
   return pamh.PAM_SUCCESS
-
-if __name__ == '__main__':
-  import sys
-  print verify_user(sys.argv[1])
